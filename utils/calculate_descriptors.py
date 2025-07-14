@@ -101,25 +101,25 @@ def merge_descriptors(config, desc_folder_path, data_folder_path):
     for mol_type in ['peptide', 'monomer']:
         df_moe = pd.read_csv(f'{desc_folder_path}/{mol_type}_moe_2D.csv')
         df = df_moe.iloc[:, :df_moe.columns.to_list().index('apol')].copy()
-        df_moe = df_moe.iloc[:, df_moe.columns.to_list().index('apol'):].select_dtypes('number')
+        # df_moe = df_moe.iloc[:, df_moe.columns.to_list().index('apol'):].select_dtypes('number')
 
         df_rdkit = pd.read_csv(f'{desc_folder_path}/{mol_type}_rdkit.csv').select_dtypes('number')
-        name_dup = []
-        for _ in df_rdkit.columns:
-            if _ in df_moe.columns.to_list():
-                name_dup.append(_)
-        name_dup = dict(zip(name_dup, [_+'_rdkit' for _ in name_dup]))
-        df_rdkit = df_rdkit.rename(columns=name_dup)
+        # name_dup = []
+        # for _ in df_rdkit.columns:
+        #     if _ in df_moe.columns.to_list():
+        #         name_dup.append(_)
+        # name_dup = dict(zip(name_dup, [_+'_rdkit' for _ in name_dup]))
+        # df_rdkit = df_rdkit.rename(columns=name_dup)
 
         df_mordred = pd.read_csv(f'{desc_folder_path}/{mol_type}_mordred_2D.csv').select_dtypes('number')
         name_dup = []
         for _ in df_mordred.columns:
-            if ((_ in df_moe.columns.to_list()) or (_ in df_rdkit.columns.to_list())):
+            if ((_ in df_rdkit.columns.to_list())):
                 name_dup.append(_)
         name_dup = dict(zip(name_dup, [_+'_mordred' for _ in name_dup]))
         df_mordred = df_mordred.rename(columns=name_dup)
 
-        df = pd.concat([df, df_moe, df_rdkit, df_mordred], axis=1)
+        df = pd.concat([df, df_rdkit, df_mordred], axis=1)
         df.to_csv(f'{desc_folder_path}/{mol_type}_2D.csv', index=False)
 
     # 3D
