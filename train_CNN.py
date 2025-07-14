@@ -1,5 +1,5 @@
 from model import schedular
-from model import peptide_model
+from model import monomer_model
 from model import model_utils
 import torch.nn as nn
 import torch
@@ -30,29 +30,38 @@ def create_model(trial):
     )
     dim_linear = trial.suggest_categorical("dim_linear", [64, 128, 256, 512])
     dim_out = trial.suggest_categorical("dim_out", [16, 32, 64])
-    # MLP
-    MLP_num_mlp = trial.suggest_int("MLP_num_mlp", 1, 6, 1)
-    MLP_dim_mlp = trial.suggest_categorical("MLP_dim_mlp", [64, 128, 256, 512])
-    MLP_dim_linear = dim_linear
-    MLP_activation_name = activation_name
-    MLP_dropout_rate = trial.suggest_float(
-        "MLP_dropout_rate", 0.0, 0.3, step=0.05)
-    MLP_dim_out = dim_out
-    # concat
-    # Fusion_num_concat = trial.suggest_int("Fusion_num_concat", 1, 3, 1)
-    # Fusion_concat_units = [dim_linear] * Fusion_num_concat
-
-    model = peptide_model.MultiLayerPerceptron(
+    # CNN
+    CNN_type = trial.suggest_categorical(
+        "CNN_type", ["AugCNN", "AugCyclicConv"])
+    CNN_num_conv = trial.suggest_int("CNN_num_conv", 1, 6, 1)
+    CNN_conv_units = [
+        int(trial.suggest_categorical(
+            "conv_units" + str(i), [32, 64, 128, 256]))
+        for i in range(CNN_num_conv)
+    ]
+    if CNN_type == "AugCyclicConv":
+        CNN_padding = 0
+    elif CNN_type == "AugCNN":
+        CNN_padding = 1
+    CNN_num_linear = trial.suggest_int("CNN_num_linear", 1, 2, 1)
+    CNN_linear_units = [dim_linear] * CNN_num_linear
+    CNN_activation_name = activation_name
+    CNN_pooling_name = trial.suggest_categorical(
+        "CNN_pooling_name", ["max", "ave"])
+    CNN_dim_out = dim_out
+    model = monomer_model.ConvolutionalNeuralNetwork(
         device=DEVICE,
         use_auxiliary=USE_AUXILIARY,
-        # MLP
-        num_mlp=MLP_num_mlp,
-        dim_mlp=MLP_dim_mlp,
-        activation_name=MLP_activation_name,
-        dropout_rate=MLP_dropout_rate,
-        dim_linear=MLP_dim_linear,
-        dim_out=MLP_dim_out,
-        # Fusion
+        # CNN
+        cnn_type=CNN_type,
+        num_conv=CNN_num_conv,
+        conv_units=CNN_conv_units,
+        padding=CNN_padding,
+        activation_name=CNN_activation_name,
+        pooling_name=CNN_pooling_name,
+        num_linear=CNN_num_linear,
+        linear_units=CNN_linear_units,
+        dim_out=CNN_dim_out,
     )
 
     return model
@@ -66,8 +75,8 @@ def create_optimizer(trial, model):
         "optimizer_name", ["AdamW", "NAdam", "RAdam"]
     )
     weight_decay = trial.suggest_categorical(
-        "weight_decay",
-        [5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1],
+        "weight_decay", [5e-6, 1e-5, 5e-5, 1e-4,
+                         5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     )
 
     # lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.01,
@@ -86,7 +95,7 @@ def create_optimizer(trial, model):
     return optimizer
 
 
-MODEL_TYPE = "MLP"
+MODEL_TYPE = "CNN"
 REPLICA_NUM = 60  # Augmentation times
 
 EPOCH_NUM = 50
@@ -162,8 +171,6 @@ def objective(trial):
             scheduler,
             verbose=True,
             use_auxiliary=USE_AUXILIARY,
-            gamma_layer=gamma_layer,
-            gamma_subout=gamma_subout,
         )
         # Save complete loss after early stopping
         if DEVICE == "cuda":
@@ -184,7 +191,7 @@ def objective(trial):
             (time_end_trial - time_start_trial):.0f
         }"
     )
-    print("------------------------------------------------------------------------")
+    print(f"--------------------trial {trial.number} done--------------------")
 
     return loss_trial / CV
 
@@ -196,15 +203,7 @@ study = optuna.create_study(
     storage=f"sqlite:///weight/{MODEL_TYPE}_optuna/{
         MODEL_TYPE}-{REPLICA_NUM}.db",
 )
-study.optimize(objective, 0)
+study.optimize(objective, 10)
 study.trials_dataframe().to_csv(
     f"weight/{MODEL_TYPE}_optuna/study_history_{MODEL_TYPE}-{REPLICA_NUM}.csv"
 )
-
-study = optuna.load_study(
-    study_name=f"{MODEL_TYPE}-{REPLICA_NUM}",
-    storage=f"sqlite:///weight/{MODEL_TYPE}_optuna/{
-        MODEL_TYPE}-{REPLICA_NUM}.db",
-)
-optuna.visualization.plot_param_importances(study)
-optuna.visualization.plot_optimization_history(study)
