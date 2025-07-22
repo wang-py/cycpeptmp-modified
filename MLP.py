@@ -75,39 +75,3 @@ class MyMLP(nn.Module):
     def forward(self, x):
         return self.mlp(x)
 
-
-# Path to the dataset
-dataset_path = "model/input/MLP/60/peptide_60_Test.npz"
-
-# Create dataset and loader
-dataset = PeptideDataset(dataset_path)
-dataloader = DataLoader(dataset, batch_size=128, shuffle=False)
-
-# Example usage
-for batch_x, batch_y in dataloader:
-    print(batch_x.shape)  # [batch_size, 16 + 2048]
-    print(batch_y.shape)  # [batch_size]
-    break
-
-
-# Example usage
-batch_size = 128
-dim_input = 128  # Must match input feature dimension
-
-model = MyMLP(
-    dim_input=dim_input,
-    dim_linear=128,
-    dim_out=16,
-    activation_name="ReLU",
-    MLP_num_mlp=1,
-    MLP_dim_mlp=128,
-    MLP_dropout_rate=0.25,
-)
-
-# Define optimizer
-optimizer = RAdam(model.parameters(), lr=1e-3, weight_decay=0.0005)
-
-# Example dummy input
-x = torch.randn(batch_size, dim_input)
-output = model(x)
-print(output.shape)  # Should print: torch.Size([128, 16])

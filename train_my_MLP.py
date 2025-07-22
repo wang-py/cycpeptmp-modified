@@ -19,11 +19,18 @@ print(f"device: {device}")
 
 folder = "model/input/MLP/60/"
 # List of your folds
-fold_paths = [
-    folder + "peptide_60_Train_cv0.npz",
-    folder + "peptide_60_Train_cv1.npz",
-    folder + "peptide_60_Train_cv2.npz",
+train_fold_paths = [
+    folder + "peptide_60_Train_cv0_no_moe.npz",
+    folder + "peptide_60_Train_cv1_no_moe.npz",
+    folder + "peptide_60_Train_cv2_no_moe.npz",
 ]
+
+valid_fold_paths = [
+    folder + "peptide_60_Valid_cv0_no_moe.npz",
+    folder + "peptide_60_Valid_cv1_no_moe.npz",
+    folder + "peptide_60_Valid_cv2_no_moe.npz",
+]
+val_losses = []
 val_losses = []
 
 
@@ -37,11 +44,11 @@ for fold_idx in range(3):
     print(f"\n🔁 Fold {fold_idx + 1}")
 
     # Load validation dataset
-    val_dataset = PeptideDataset(fold_paths[fold_idx])
+    val_dataset = PeptideDataset(valid_fold_paths[fold_idx])
 
     # Load training datasets (the other two folds)
     train_indices = [i for i in range(3) if i != fold_idx]
-    train_datasets = [PeptideDataset(fold_paths[i]) for i in train_indices]
+    train_datasets = [PeptideDataset(train_fold_paths[i]) for i in train_indices]
     train_dataset = ConcatDataset(train_datasets)
 
     # Dataloaders
@@ -52,7 +59,7 @@ for fold_idx in range(3):
 
     # Model and optimizer
     model = MyMLP(
-        dim_input=16 + 2048,
+        dim_input=7 + 2048,
         dim_linear=128,
         dim_out=1,
         activation_name="ReLU",
@@ -116,7 +123,7 @@ for fold_idx in range(3):
 
     model.load_state_dict(best_model_state)
     val_losses.append(best_val_loss)
-    torch.save(model.state_dict(), f"my_MLP_model/model_fold{fold_idx}.pt")
+    torch.save(model.state_dict(), f"my_MLP_model/model_fold_{fold_idx}.pt")
 
 
 # Final result
