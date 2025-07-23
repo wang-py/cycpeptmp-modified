@@ -7,12 +7,12 @@ from MLP import MyMLP
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"device: {device}")
 # Your model definition
-test_npz = "model/input/MLP/60/peptide_60_RRCK.npz"
+test_npz = "model/input/MLP/60/peptide_60_RRCK_no_moe.npz"
 # 2. Load data
 test_data = np.load(test_npz)
 desc = torch.tensor(test_data["peptide_descriptor"], dtype=torch.float32)
 fps = torch.tensor(test_data["fps"], dtype=torch.float32)
-x_test = fps  # torch.cat([desc, fps], dim=1)
+x_test = torch.cat([desc, fps], dim=1)
 
 test_loader = DataLoader(TensorDataset(x_test), batch_size=128)
 
@@ -20,7 +20,7 @@ model_preds = []
 
 for fold_idx in range(3):
     model = MyMLP(
-        dim_input=2048,
+        dim_input=7 + 2048,
         dim_linear=128,
         dim_out=1,
         activation_name="ReLU",
@@ -30,7 +30,7 @@ for fold_idx in range(3):
     ).to(device)
 
     model.load_state_dict(torch.load(
-        f"my_MLP_model/model_fps_fold_{fold_idx}.pt"))
+        f"my_MLP_model/model_no_moe_fold_{fold_idx}.pt"))
     model.eval()
 
     preds = []
